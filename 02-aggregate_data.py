@@ -1,3 +1,19 @@
+"""
+02-aggregate_data.py
+
+Purpose:
+- Aggregates the raw data files into consolidated datasets.
+
+Key Functions:
+- Reading Files: Reads multiple CSV files from directories.
+- Combining Data: Merges data into a single DataFrame.
+- Saving Aggregated Data: Writes processed data to new CSV files.
+
+Execution:
+- Run this script **after** `01-request_data.py` to process and combine raw data files.
+"""
+
+
 import os
 import json
 import pandas as pd

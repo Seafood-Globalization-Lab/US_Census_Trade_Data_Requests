@@ -1,9 +1,24 @@
+"""
+01-request_data.py
+
+Purpose:
+- Fetches trade data from the U.S. Census Bureau's API.
+- Saves retrieved data into structured directories.
+
+Key Functions:
+- Fetching Data: Sends API requests to retrieve import and export data.
+- Saving Data: Stores responses as raw CSV files for later processing.
+
+Execution:
+- Run this script **first** to collect raw trade data.
+"""
+
 
 import os
 import requests
 import json
 import pprint
-import helpers
+import 01-helpers
 import time
 
 # international import and export trade URLs

@@ -1,3 +1,18 @@
+"""
+helpers.py
+
+Purpose:
+- Contains utility functions for data processing.
+
+Key Functions:
+- Data Filtering: Filters datasets based on Harmonized System (HS) codes.
+- CSV Creation: Generates CSV-formatted strings.
+- Header Construction: Builds column headers for structured datasets.
+
+Execution:
+- This script is **not standalone**; it is used by `01-request_data.py` and `02-aggregate_data.py`.
+"""
+
 import requests
 import json
 
