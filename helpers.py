@@ -91,19 +91,32 @@ def getTradeRecords(tradeType, tradeURL, colHeaders, hsCodes, hsLvl, years, ctyC
     fullURL = fullURL + '&' + buildHS_Codes(tradeType, hsCodes, hsLvl)
     fullURL = fullURL + '&' + buildYears(years)
     fullURL = fullURL + '&' + buildCtyCodes(ctyCodes)
-    #fullURL = fullURL + '&' + 'MONTH=01'
     fullURL = fullURL + '&key=' + apiKey
 
-    print(fullURL)
-    resp = requests.get(fullURL)
-    print(f'response {resp.status_code}')
-    if resp.status_code == 200:
-        tradeRecords = resp.json()
-    else:
-        print(resp.status_code)
-        print(resp.content)
-        tradeRecords = None
-    return tradeRecords
+    print(f"Requesting: {fullURL}")  # Debugging
+
+    try:
+        resp = requests.get(fullURL)
+        print(f"Response Status: {resp.status_code}")
+
+        if resp.status_code == 200:
+            if not resp.text.strip():  # Check if response is empty
+                print(f"Warning: Empty response from API for {hsCodes}, {years}")
+                return None
+
+            try:
+                tradeRecords = resp.json()
+                return tradeRecords
+            except json.JSONDecodeError as e:
+                print(f"JSONDecodeError for {hsCodes}, {years}: {e}")
+                print(f"Raw API Response (truncated):\n{resp.text[:300]}...\n")  # Print first 300 characters only
+                return None
+        else:
+            print(f"API Error {resp.status_code}: {resp.text}")  # Print error message from API
+            return None
+    except requests.RequestException as e:
+        print(f"Request failed: {e}")
+        return None
 
 def formatCountryCodes(inFP, outFP):
     f = open(inFP, 'r')

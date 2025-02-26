@@ -18,7 +18,7 @@ import os
 import requests
 import json
 import pprint
-import 01-helpers
+import helpers
 import time
 
 # international import and export trade URLs
@@ -33,58 +33,59 @@ f.close()
 # make sure there are no extra characters in key
 API_KEY = API_KEY.rstrip('\n')
 
+# from table variable descriptions: https://api.census.gov/data/timeseries/intltrade/exports/hs/variables.html
 tableHeadersExport = [
-    'CTY_CODE',
-    'CTY_NAME',
-    'ALL_VAL_MO',
-    'QTY_1_MO',
-    'QTY_1_MO_FLAG',
-    'UNIT_QY1',
-    'QTY_2_MO',
-    'QTY_2_MO_FLAG',
-    'UNIT_QY2',
-    'UNIT_QY2',
-    'AIR_VAL_MO', # air value
-    'AIR_WGT_MO', # air weight value
-    'VES_VAL_MO', # vessel value
-    'VES_WGT_MO',
-    'CNT_VAL_MO', # containerized vessel value
-    'CNT_WGT_MO',
-    'MONTH',
-    'SUMMARY_LVL',
-    'DF',
-    'COMM_LVL',
-    'E_COMMODITY_LDESC'# ,
+    'CTY_CODE', # 4-character Country Code
+    'CTY_NAME', # 50-character Country Name
+    'ALL_VAL_MO', # 15-digit Total Value
+    'QTY_1_MO', # 15-digit Quantity 1
+    'QTY_1_MO_FLAG', # 1-character True Zero Flag for Quantity 1
+    'UNIT_QY1', # 3-character Export Unit of Quantity 1
+    'QTY_2_MO', # 	15-digit Quantity 2
+    'QTY_2_MO_FLAG', # 1-character True Zero Flag for Quantity 2
+    'UNIT_QY2', # 3-character Export Unit of Quantity 2
+    'UNIT_QY2', # 3-character Export Unit of Quantity 2
+    'AIR_VAL_MO', # 15-digit Air Value
+    'AIR_WGT_MO', # 15-digit Air Shipping Weight
+    'VES_VAL_MO', # vessel value # 15-digit Vessel Value
+    'VES_WGT_MO', # 15-digit Vessel Shipping Weight
+    'CNT_VAL_MO', # 15-digit Containerized Vessel Value
+    'CNT_WGT_MO', # 15-digit Containerized Vessel Shipping Weight
+    'MONTH', # 2-character Month
+    'SUMMARY_LVL', # Detail ('DET') or Country Grouping ('CGP') indicator
+    'DF', # 1-character Domestic or Foreign Code
+    'COMM_LVL', # 4-character aggregation levels for commodity code. HS2=2-digit HS totals. HS4=4-digit HS totals. HS6=6-digit HS totals. HS10=10-digit HS totals.
+    'E_COMMODITY_LDESC'# 150-character Export Harmonized Code Description ,
     # 'PORT',
     # 'PORT_NAME'
 ]
 
 tableHeadersImport = [
-    'CTY_CODE',
-    'CTY_NAME',
-    'GEN_CHA_MO',
-    'GEN_VAL_MO',
-    'GEN_QY1_MO',
-    'GEN_QY1_MO_FLAG',
-    'UNIT_QY1',
-    'GEN_QY2_MO',
-    'GEN_QY2_MO_FLAG',
-    'UNIT_QY2',
-    'AIR_VAL_MO', # air value
-    'AIR_WGT_MO', # air weight value
-    'VES_VAL_MO', # vessel value
-    'VES_WGT_MO', # vessel value weight
-    'CNT_VAL_MO', # containerized vessel value
-    'CNT_WGT_MO', # containerized vessel weight value
-    'MONTH',
-    'SUMMARY_LVL',
-    'I_COMMODITY_LDESC'# ,
+    'CTY_CODE', # 4-character Country Code
+    'CTY_NAME', # 50-character Country Name
+    'GEN_CHA_MO', # 15-digit General Imports, Charges
+    'GEN_VAL_MO', # 15-digit General Imports, Total Value
+    'GEN_QY1_MO', # 15-digit General Imports, Quantity 1
+    'GEN_QY1_MO_FLAG', # 1-character True Zero Flag for General Imports, Quantity 2
+    'UNIT_QY1', # 3-character Import Unit of Quantity 1
+    'GEN_QY2_MO', # 15-digit General Imports, Quantity 2
+    'GEN_QY2_MO_FLAG', # 1-character True Zero Flag for Year-to-Date General Imports, Quantity 3
+    'UNIT_QY2', # 3-character Import Unit of Quantity 2
+    'AIR_VAL_MO', # 15-digit Air Value
+    'AIR_WGT_MO', # 15-digit Air Shipping Weight
+    'VES_VAL_MO', # 15-digit Vessel Value
+    'VES_WGT_MO', # 15-digit Vessel Shipping Weight
+    'CNT_VAL_MO', # 15-digit Containerized Vessel Value
+    'CNT_WGT_MO', # 15-digit Containerized Vessel Shipping Weight
+    'MONTH', # 2-character Month
+    'SUMMARY_LVL', # Detail ('DET') or Country Grouping ('CGP') indicator
+    'I_COMMODITY_LDESC'# 150-character Import Harmonized Code Description ,
     # 'PORT',
     # 'PORT_NAME'
     #'DF'
 ]
 
-years = list(range(2013, 2023))
+years = list(range(2013, 2024))
 
 
 ctyCodes = [
@@ -99,7 +100,7 @@ hsLvl = 'HS10'
 
 # Get all relevant HS Codes from files
 
-inFilePath = 'seafoodLvl10Codes.csv'
+inFilePath = 'data/seafoodLvl10Codes.csv'
 inF = open(inFilePath, 'r')
 lines = inF.readlines()
 inF.close()
@@ -112,7 +113,7 @@ for line in lines:
 
 #seafoodHScodes = ['0301110020']
 
-outdir = "rus_chn_20230928"
+outdir = "rus_chn_20250225"
 exports_dir = os.path.join(outdir, "exports")
 imports_dir = os.path.join(outdir, "imports")
 
@@ -130,57 +131,58 @@ for year in years:
         print(f'YEAR: {year} HS CODE: {hsCode}')
 
         try:
-            # INTL and Domestic export trades
             exports = helpers.getTradeRecords('export', EXPORT_URL, tableHeadersExport, [hsCode], hsLvl, [year], ctyCodes, API_KEY)
-        except:
+            if exports:
+                print(f'Successfully retrieved exports for {hsCode} in {year}')
+            else:
+                print(f'No export data available for {hsCode} in {year}')
+        except Exception as e:
             exports = None
-            error_log_file = os.path.join(outdir, "error_log.txt")
-            error_f = open(error_log_file, "a+")
-            error_f.write(f'export, {year}, {hsCode}\n')
-            error_f.close()
+            print(f'Error retrieving exports for {hsCode} in {year}: {e}')
+            with open(os.path.join(outdir, "error_log.txt"), "a+") as error_f:
+                error_f.write(f'export, {year}, {hsCode}\n')
 
-        exportFile = ''
-        if exports != None:
+        # Save export data only if it's valid
+        if exports:
             exportFile = helpers.makeCSV(exports)
-        print('retrieved exports')
+            exports_year_dir = os.path.join(exports_dir, str(year))
+            os.makedirs(exports_year_dir, exist_ok=True)
 
-        exports_year_dir = os.path.join(exports_dir, str(year))
-        imports_year_dir = os.path.join(imports_dir, str(year))
-
-        if not os.path.exists(exports_year_dir):
-            os.makedirs(exports_year_dir)
-        
-        if not os.path.exists(imports_year_dir):
-            os.makedirs(imports_year_dir)
-
-        fOutName = os.path.join(exports_year_dir, f'{hsCode}_{str(year)}.csv')
-        fOut = open(fOutName, 'w')
-        fOut.write(exportFile)
-        fOut.close()
+            exportFilePath = os.path.join(exports_year_dir, f'{hsCode}_{year}.csv')
+            with open(exportFilePath, 'w') as fOut:
+                fOut.write(exportFile)
+        else:
+            print(f'Skipping file creation for exports: {hsCode} in {year}')
 
         time.sleep(1)
 
+        # Fetch import data
         try:
             imports = helpers.getTradeRecords('import', IMPORT_URL, tableHeadersImport, [hsCode], hsLvl, [year], ctyCodes, API_KEY)
-        except:
+            if imports:
+                print(f'Successfully retrieved imports for {hsCode} in {year}')
+            else:
+                print(f'No import data available for {hsCode} in {year}')
+        except Exception as e:
             imports = None
-            error_log_file = os.path.join(outdir, "error_log.txt")
-            error_f = open(error_log_file, "a+")
-            error_f.write(f'import, {year}, {hsCode}\n')
-            error_f.close()
-        
-        importFile = ''
-        if imports != None:
+            print(f'Error retrieving imports for {hsCode} in {year}: {e}')
+            with open(os.path.join(outdir, "error_log.txt"), "a+") as error_f:
+                error_f.write(f'import, {year}, {hsCode}\n')
+
+        # Save import data only if it's valid
+        if imports:
             importFile = helpers.makeCSV(imports)
-        print('retrieved imports')
+            imports_year_dir = os.path.join(imports_dir, str(year))
+            os.makedirs(imports_year_dir, exist_ok=True)
 
-        importFilePath = os.path.join(imports_year_dir, f'{hsCode}_{str(year)}.csv')
-        importF = open(importFilePath, 'w')
-        importF.write(importFile)
-        importF.close()
+            importFilePath = os.path.join(imports_year_dir, f'{hsCode}_{year}.csv')
+            with open(importFilePath, 'w') as importF:
+                importF.write(importFile)
+        else:
+            print(f'Skipping file creation for imports: {hsCode} in {year}')
 
-        time.sleep(1)
-        
+        time.sleep(1)  # Prevent hitting API rate limits
 
 print("DONE")
+
 
