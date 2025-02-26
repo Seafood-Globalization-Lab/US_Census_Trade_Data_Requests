@@ -21,8 +21,9 @@ import pprint
 import helpers
 import time
 
-# international import and export trade URLs
+# Dataset Title -  "Time Series International Trade: Monthly U.S. Exports by Harmonized System (HS) Code"
 EXPORT_URL = 'https://api.census.gov/data/timeseries/intltrade/exports/hs'
+# Dataset Title - "Time Series International Trade: Monthly U.S. Imports by Harmonized System (HS) Code"
 IMPORT_URL = 'https://api.census.gov/data/timeseries/intltrade/imports/hs'
 
 # read in API key
@@ -91,16 +92,17 @@ tableHeadersImport = [
 ]
 
 # define years to pull
-years = list(range(2013, 2024))
+years = list(range(2023, 2024))
 
 # define country codes to pull
-ctyCodes = [
-    "5700", # China
-    "5830", # Taiwan
-    "5820", # Hong Kong
-    "5660", # Macau
-    "4621" # Russia
-]
+ctyCodes = []
+#ctyCodes = [
+#    "5700", # China
+#    "5830", # Taiwan
+#    "5820", # Hong Kong
+#    "5660", # Macau
+#    "4621" # Russia
+#]
 # define HS level to pull
 hsLvl = 'HS10'
 
