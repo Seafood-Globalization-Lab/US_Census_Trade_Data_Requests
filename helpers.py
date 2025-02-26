@@ -80,15 +80,12 @@ def buildYears(years):
 
 # Build URL for country codes
 def buildCtyCodes(ctyCodes):
-    ctyCodeURL = ''
-
-    if len(ctyCodes) > 0:
-        for ctyCode in ctyCodes:
-            ctyCodeURL = ctyCodeURL + 'CTY_CODE=' + str(ctyCode) + '&'
-        
-        ctyCodeURL = ctyCodeURL[:-1]
-
+    if not ctyCodes:  # If ctyCodes is empty, return an empty string (no filter)
+        return ""
+    
+    ctyCodeURL = "&".join(f"CTY_CODE={str(ctyCode)}" for ctyCode in ctyCodes)
     return ctyCodeURL
+
 
 # Request trade records
 def getTradeRecords(tradeType, tradeURL, colHeaders, hsCodes, hsLvl, years, ctyCodes, apiKey):
@@ -107,7 +104,7 @@ def getTradeRecords(tradeType, tradeURL, colHeaders, hsCodes, hsLvl, years, ctyC
         # Send GET request
         resp = requests.get(fullURL)
         # Check response status
-        print(f"Response Status: {resp.status_code}")
+        print(f"HTTP Response Status: {resp.status_code}")
         # Check if response is successful
         if resp.status_code == 200:
             # Check if response is empty
@@ -123,10 +120,7 @@ def getTradeRecords(tradeType, tradeURL, colHeaders, hsCodes, hsLvl, years, ctyC
                 print(f"JSONDecodeError for {hsCodes}, {years}: {e}")
                 print(f"Raw API Response (truncated):\n{resp.text[:300]}...\n")  # Print first 300 characters only
                 return None
-        else:
-            print(f"API Error {resp.status_code}: {resp.text}")  # Print error message from API
-            return None
-        #
+        # Handle non-200 response
     except requests.RequestException as e:
         print(f"Request failed: {e}")
         return None
