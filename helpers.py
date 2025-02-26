@@ -16,6 +16,7 @@ Execution:
 import requests
 import json
 
+# Filter data based on HS code
 def filterData(data, hsLvl, hsCode):
     filteredData = []
 
@@ -25,6 +26,7 @@ def filterData(data, hsLvl, hsCode):
     
     return filteredData
 
+# Create CSV-formatted string
 def makeCSV(data):
     csvStr = ''
 
@@ -37,6 +39,7 @@ def makeCSV(data):
     
     return csvStr
 
+# Build column headers
 def buildColHeaders(colHeaders):
 
     colNames = ''
@@ -49,6 +52,7 @@ def buildColHeaders(colHeaders):
 
     return colNames
 
+# Build URL for HS codes
 def buildHS_Codes(tradeType, hsCodes, commLvl):
 
     commodityType = ''
@@ -65,6 +69,7 @@ def buildHS_Codes(tradeType, hsCodes, commLvl):
     hsURL = hsURL[:-1]
     return hsURL
 
+# Build URL for years
 def buildYears(years):
     yearURL = ''
 
@@ -73,6 +78,7 @@ def buildYears(years):
     yearURL = yearURL[:-1]
     return yearURL
 
+# Build URL for country codes
 def buildCtyCodes(ctyCodes):
     ctyCodeURL = ''
 
@@ -84,8 +90,9 @@ def buildCtyCodes(ctyCodes):
 
     return ctyCodeURL
 
+# Request trade records
 def getTradeRecords(tradeType, tradeURL, colHeaders, hsCodes, hsLvl, years, ctyCodes, apiKey):
-
+    # Construct full URL
     fullURL = tradeURL + '?get='
     fullURL = fullURL + buildColHeaders(colHeaders)
     fullURL = fullURL + '&' + buildHS_Codes(tradeType, hsCodes, hsLvl)
@@ -95,18 +102,23 @@ def getTradeRecords(tradeType, tradeURL, colHeaders, hsCodes, hsLvl, years, ctyC
 
     print(f"Requesting: {fullURL}")  # Debugging
 
+    # Request data from API
     try:
+        # Send GET request
         resp = requests.get(fullURL)
+        # Check response status
         print(f"Response Status: {resp.status_code}")
-
+        # Check if response is successful
         if resp.status_code == 200:
+            # Check if response is empty
             if not resp.text.strip():  # Check if response is empty
                 print(f"Warning: Empty response from API for {hsCodes}, {years}")
                 return None
-
+            # Parse JSON response
             try:
                 tradeRecords = resp.json()
                 return tradeRecords
+            # Handle JSON parsing error
             except json.JSONDecodeError as e:
                 print(f"JSONDecodeError for {hsCodes}, {years}: {e}")
                 print(f"Raw API Response (truncated):\n{resp.text[:300]}...\n")  # Print first 300 characters only
@@ -114,10 +126,12 @@ def getTradeRecords(tradeType, tradeURL, colHeaders, hsCodes, hsLvl, years, ctyC
         else:
             print(f"API Error {resp.status_code}: {resp.text}")  # Print error message from API
             return None
+        #
     except requests.RequestException as e:
         print(f"Request failed: {e}")
         return None
 
+# Format country codes
 def formatCountryCodes(inFP, outFP):
     f = open(inFP, 'r')
     lines = f.readlines()
@@ -125,6 +139,7 @@ def formatCountryCodes(inFP, outFP):
 
     codes = []
 
+    # remove newline characters
     for line in lines:
         codes.append(line[:4])
     

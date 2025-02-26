@@ -33,7 +33,10 @@ f.close()
 # make sure there are no extra characters in key
 API_KEY = API_KEY.rstrip('\n')
 
-# from table variable descriptions: https://api.census.gov/data/timeseries/intltrade/exports/hs/variables.html
+# define which variables we want to pull
+
+# Census Data API: Variables in /data/timeseries/intltrade/exports/hs/variables
+# description table https://api.census.gov/data/timeseries/intltrade/exports/hs/variables.html
 tableHeadersExport = [
     'CTY_CODE', # 4-character Country Code
     'CTY_NAME', # 50-character Country Name
@@ -60,6 +63,8 @@ tableHeadersExport = [
     # 'PORT_NAME'
 ]
 
+# Census Data API: Variables in /data/timeseries/intltrade/imports/hs/variables
+# from table variable descriptions: https://api.census.gov/data/timeseries/intltrade/imports/hs/variables.html
 tableHeadersImport = [
     'CTY_CODE', # 4-character Country Code
     'CTY_NAME', # 50-character Country Name
@@ -85,9 +90,10 @@ tableHeadersImport = [
     #'DF'
 ]
 
+# define years to pull
 years = list(range(2013, 2024))
 
-
+# define country codes to pull
 ctyCodes = [
     "5700", # China
     "5830", # Taiwan
@@ -95,34 +101,38 @@ ctyCodes = [
     "5660", # Macau
     "4621" # Russia
 ]
-
+# define HS level to pull
 hsLvl = 'HS10'
 
 # Get all relevant HS Codes from files
-
 inFilePath = 'data/seafoodLvl10Codes.csv'
 inF = open(inFilePath, 'r')
 lines = inF.readlines()
 inF.close()
 
+
 seafoodHScodes = []
 
+# remove newline characters
 for line in lines:
     line = line.rstrip('\n')
     seafoodHScodes.append(line)
 
 #seafoodHScodes = ['0301110020']
 
+# create directories to store data
 outdir = "rus_chn_20250225"
 exports_dir = os.path.join(outdir, "exports")
 imports_dir = os.path.join(outdir, "imports")
 
+# create directories if they don't exist
 if not os.path.exists(exports_dir):
     os.makedirs(exports_dir)
 
 if not os.path.exists(imports_dir):
     os.makedirs(imports_dir)
 
+# loop through years and HS codes to pull data
 for year in years:
     print(f'hs codes are being searched for {year}')
 
@@ -130,12 +140,14 @@ for year in years:
 
         print(f'YEAR: {year} HS CODE: {hsCode}')
 
+# Fetch export data
         try:
             exports = helpers.getTradeRecords('export', EXPORT_URL, tableHeadersExport, [hsCode], hsLvl, [year], ctyCodes, API_KEY)
             if exports:
                 print(f'Successfully retrieved exports for {hsCode} in {year}')
             else:
                 print(f'No export data available for {hsCode} in {year}')
+        # write to error log
         except Exception as e:
             exports = None
             print(f'Error retrieving exports for {hsCode} in {year}: {e}')
@@ -148,12 +160,13 @@ for year in years:
             exports_year_dir = os.path.join(exports_dir, str(year))
             os.makedirs(exports_year_dir, exist_ok=True)
 
+            # write to file
             exportFilePath = os.path.join(exports_year_dir, f'{hsCode}_{year}.csv')
             with open(exportFilePath, 'w') as fOut:
                 fOut.write(exportFile)
         else:
             print(f'Skipping file creation for exports: {hsCode} in {year}')
-
+        # wait 1 second before making next request
         time.sleep(1)
 
         # Fetch import data
@@ -163,6 +176,7 @@ for year in years:
                 print(f'Successfully retrieved imports for {hsCode} in {year}')
             else:
                 print(f'No import data available for {hsCode} in {year}')
+        # write to error log
         except Exception as e:
             imports = None
             print(f'Error retrieving imports for {hsCode} in {year}: {e}')
@@ -174,7 +188,7 @@ for year in years:
             importFile = helpers.makeCSV(imports)
             imports_year_dir = os.path.join(imports_dir, str(year))
             os.makedirs(imports_year_dir, exist_ok=True)
-
+            # write to file
             importFilePath = os.path.join(imports_year_dir, f'{hsCode}_{year}.csv')
             with open(importFilePath, 'w') as importF:
                 importF.write(importFile)
