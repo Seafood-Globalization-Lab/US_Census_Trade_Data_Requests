@@ -15,6 +15,13 @@ Execution:
 
 import requests
 import json
+import csv
+import datetime
+import os
+
+# Ensure the output directory exists
+outdir = "output"
+os.makedirs(outdir, exist_ok=True)  #  Creates "output" directory if it doesn't exist
 
 # Filter data based on HS code
 def filterData(data, hsLvl, hsCode):
@@ -87,43 +94,45 @@ def buildCtyCodes(ctyCodes):
     return ctyCodeURL
 
 
-# Request trade records
 def getTradeRecords(tradeType, tradeURL, colHeaders, hsCodes, hsLvl, years, ctyCodes, apiKey):
+    """Fetch trade records from the Census API and return (data, HTTP status)."""
+    
     # Construct full URL
     fullURL = tradeURL + '?get='
-    fullURL = fullURL + buildColHeaders(colHeaders)
-    fullURL = fullURL + '&' + buildHS_Codes(tradeType, hsCodes, hsLvl)
-    fullURL = fullURL + '&' + buildYears(years)
-    fullURL = fullURL + '&' + buildCtyCodes(ctyCodes)
-    fullURL = fullURL + '&key=' + apiKey
+    fullURL += buildColHeaders(colHeaders)
+    fullURL += '&' + buildHS_Codes(tradeType, hsCodes, hsLvl)
+    fullURL += '&' + buildYears(years)
+    fullURL += '&' + buildCtyCodes(ctyCodes)
+    fullURL += '&key=' + apiKey
 
     print(f"Requesting: {fullURL}")  # Debugging
 
     # Request data from API
     try:
-        # Send GET request
         resp = requests.get(fullURL)
-        # Check response status
-        print(f"HTTP Response Status: {resp.status_code}")
-        # Check if response is successful
+        print(f"HTTP Response Status: {resp.status_code}")  # Debugging
+
+        # If the request was successful (200), attempt to parse response
         if resp.status_code == 200:
-            # Check if response is empty
             if not resp.text.strip():  # Check if response is empty
                 print(f"Warning: Empty response from API for {hsCodes}, {years}")
-                return None
-            # Parse JSON response
+                return None, resp.status_code  # ✅ Return (None, HTTP status)
+
             try:
                 tradeRecords = resp.json()
-                return tradeRecords
-            # Handle JSON parsing error
+                return tradeRecords, resp.status_code  # ✅ Return (data, HTTP status)
             except json.JSONDecodeError as e:
                 print(f"JSONDecodeError for {hsCodes}, {years}: {e}")
-                print(f"Raw API Response (truncated):\n{resp.text[:300]}...\n")  # Print first 300 characters only
-                return None
-        # Handle non-200 response
+                print(f"Raw API Response (truncated):\n{resp.text[:300]}...\n")
+                return None, resp.status_code  # ✅ Return (None, HTTP status)
+
+        # If status is not 200, return None + status
+        return None, resp.status_code  # ✅ Return (None, HTTP status)
+
     except requests.RequestException as e:
         print(f"Request failed: {e}")
-        return None
+        return None, -1  # ✅ Return (None, -1) for network-related failures
+
 
 # Format country codes
 def formatCountryCodes(inFP, outFP):
@@ -145,3 +154,11 @@ def formatCountryCodes(inFP, outFP):
         else:
             f.write(code)
     f.close()
+
+# Log request details
+def log_request(year, hsCode, dataset, http_status, request_url):
+    """Append request details to request_log.csv"""
+    with open(log_file, "a", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow([datetime.datetime.utcnow(), year, hsCode, dataset, http_status, request_url])
+

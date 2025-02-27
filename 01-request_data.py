@@ -11,6 +11,9 @@ Key Functions:
 
 Execution:
 - Run this script **first** to collect raw trade data.
+
+Notes:
+- User can include up to 50 variables in a single API query
 """
 
 
@@ -20,6 +23,7 @@ import json
 import pprint
 import helpers
 import time
+import csv
 
 # Dataset Title -  "Time Series International Trade: Monthly U.S. Exports by Harmonized System (HS) Code"
 EXPORT_URL = 'https://api.census.gov/data/timeseries/intltrade/exports/hs'
@@ -33,6 +37,12 @@ f.close()
 
 # make sure there are no extra characters in key
 API_KEY = API_KEY.rstrip('\n')
+
+# Initialize the log file with headers if it doesn't exist
+if not os.path.exists(log_file):
+    with open(log_file, "w", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow(["date", "year", "hs_code", "dataset", "http_status", "request_url"])
 
 # define which variables we want to pull
 
@@ -91,8 +101,8 @@ tableHeadersImport = [
     #'DF'
 ]
 
-# define years to pull
-years = list(range(2023, 2024))
+# Define years to pull (descending order from 2024 to 1996)
+years = list(range(2024, 1995, -1))
 
 # define country codes to pull
 ctyCodes = []
@@ -142,65 +152,57 @@ for year in years:
 
         print(f'****\nYEAR: {year} HS CODE: {hsCode}')
 
-# Fetch export data
-        try:
-            exports = helpers.getTradeRecords('export', EXPORT_URL, tableHeadersExport, [hsCode], hsLvl, [year], ctyCodes, API_KEY)
-            if exports:
-                print(f'Exports - Successfully retrieved for {hsCode} in {year}')
-            else:
-                print(f'Exports - No data available for {hsCode} in {year}')
-        # write to error log
-        except Exception as e:
-            exports = None
-            print(f'Exports - Error retrieving for {hsCode} in {year}: {e}')
-            with open(os.path.join(outdir, "error_log.txt"), "a+") as error_f:
-                error_f.write(f'export, {year}, {hsCode}\n')
+        # Construct Export Request URL (without API key)
+        export_url = f"{EXPORT_URL}?get={','.join(tableHeadersExport)}&COMM_LVL={hsLvl}&E_COMMODITY={hsCode}&YEAR={year}"
+        if ctyCodes:
+            export_url += "&" + "&".join(f"CTY_CODE={code}" for code in ctyCodes)
 
-        # Save export data only if it's valid
+        # Fetch export data & HTTP status
+        exports, export_status = helpers.getTradeRecords('export', EXPORT_URL, tableHeadersExport, [hsCode], hsLvl, [year], ctyCodes, API_KEY)
+        helpers.log_request(year, hsCode, "export", export_status, export_url)  # ✅ Log export request
+
+        # Handle API response
         if exports:
+            print(f'Exports - Successfully retrieved for {hsCode} in {year}')
             exportFile = helpers.makeCSV(exports)
             exports_year_dir = os.path.join(exports_dir, str(year))
-            # create directory if it doesn't exist
             os.makedirs(exports_year_dir, exist_ok=True)
 
-            # write to file
+            # Write to file
             exportFilePath = os.path.join(exports_year_dir, f'{hsCode}_{year}.csv')
             with open(exportFilePath, 'w') as fOut:
                 fOut.write(exportFile)
-        # if no data, skip writing to file        
         else:
-            print(f'Export - skipping file creation for: {hsCode} in {year}')
-        # wait 1 second before making next request
-        time.sleep(1)
+            print(f'Exports - No data available for {hsCode} in {year}. Skipping file creation.')
 
-        # Fetch import data
-        try:
-            imports = helpers.getTradeRecords('import', IMPORT_URL, tableHeadersImport, [hsCode], hsLvl, [year], ctyCodes, API_KEY)
-            if imports:
-                print(f'Imports - Successfully retrieved for {hsCode} in {year}')
-            else:
-                print(f'Imports - No data available for {hsCode} in {year}')
-        # write to error log
-        except Exception as e:
-            imports = None
-            print(f'Imports - Error retrieving imports for {hsCode} in {year}: {e}')
-            with open(os.path.join(outdir, "error_log.txt"), "a+") as error_f:
-                error_f.write(f'import, {year}, {hsCode}\n')
+        time.sleep(1)  # Prevent hitting API rate limits
 
-        # Save import data only if it's valid
+        # Construct Import Request URL (without API key)
+        import_url = f"{IMPORT_URL}?get={','.join(tableHeadersImport)}&COMM_LVL={hsLvl}&I_COMMODITY={hsCode}&YEAR={year}"
+        if ctyCodes:
+            import_url += "&" + "&".join(f"CTY_CODE={code}" for code in ctyCodes)
+
+        # Fetch import data & HTTP status
+        imports, import_status = helpers.getTradeRecords('import', IMPORT_URL, tableHeadersImport, [hsCode], hsLvl, [year], ctyCodes, API_KEY)
+        helpers.log_request(year, hsCode, "import", import_status, import_url)  # ✅ Log import request
+
+        # Handle API response
         if imports:
+            print(f'Imports - Successfully retrieved for {hsCode} in {year}')
             importFile = helpers.makeCSV(imports)
             imports_year_dir = os.path.join(imports_dir, str(year))
             os.makedirs(imports_year_dir, exist_ok=True)
-            # write to file
+
+            # Write to file
             importFilePath = os.path.join(imports_year_dir, f'{hsCode}_{year}.csv')
             with open(importFilePath, 'w') as importF:
                 importF.write(importFile)
         else:
-            print(f'Imports - Skipping file creation for: {hsCode} in {year}')
+            print(f'Imports - No data available for {hsCode} in {year}. Skipping file creation.')
 
         time.sleep(1)  # Prevent hitting API rate limits
 
 print("DONE")
+
 
 
