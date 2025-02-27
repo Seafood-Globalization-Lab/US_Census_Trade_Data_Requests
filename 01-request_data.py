@@ -136,23 +136,23 @@ if not os.path.exists(imports_dir):
 
 # loop through years and HS codes to pull data
 for year in years:
-    print(f'hs codes are being searched for {year}')
+    print(f'------------------------------------------- \nhs codes are being searched for {year}')
 
     for hsCode in seafoodHScodes:
 
-        print(f'YEAR: {year} HS CODE: {hsCode}')
+        print(f'****\nYEAR: {year} HS CODE: {hsCode}')
 
 # Fetch export data
         try:
             exports = helpers.getTradeRecords('export', EXPORT_URL, tableHeadersExport, [hsCode], hsLvl, [year], ctyCodes, API_KEY)
             if exports:
-                print(f'Successfully retrieved exports for {hsCode} in {year}')
+                print(f'Exports - Successfully retrieved for {hsCode} in {year}')
             else:
-                print(f'No export data available for {hsCode} in {year}')
+                print(f'Exports - No data available for {hsCode} in {year}')
         # write to error log
         except Exception as e:
             exports = None
-            print(f'Error retrieving exports for {hsCode} in {year}: {e}')
+            print(f'Exports - Error retrieving for {hsCode} in {year}: {e}')
             with open(os.path.join(outdir, "error_log.txt"), "a+") as error_f:
                 error_f.write(f'export, {year}, {hsCode}\n')
 
@@ -160,14 +160,16 @@ for year in years:
         if exports:
             exportFile = helpers.makeCSV(exports)
             exports_year_dir = os.path.join(exports_dir, str(year))
+            # create directory if it doesn't exist
             os.makedirs(exports_year_dir, exist_ok=True)
 
             # write to file
             exportFilePath = os.path.join(exports_year_dir, f'{hsCode}_{year}.csv')
             with open(exportFilePath, 'w') as fOut:
                 fOut.write(exportFile)
+        # if no data, skip writing to file        
         else:
-            print(f'Skipping file creation for exports: {hsCode} in {year}')
+            print(f'Export - skipping file creation for: {hsCode} in {year}')
         # wait 1 second before making next request
         time.sleep(1)
 
@@ -175,13 +177,13 @@ for year in years:
         try:
             imports = helpers.getTradeRecords('import', IMPORT_URL, tableHeadersImport, [hsCode], hsLvl, [year], ctyCodes, API_KEY)
             if imports:
-                print(f'Successfully retrieved imports for {hsCode} in {year}')
+                print(f'Imports - Successfully retrieved for {hsCode} in {year}')
             else:
-                print(f'No import data available for {hsCode} in {year}')
+                print(f'Imports - No data available for {hsCode} in {year}')
         # write to error log
         except Exception as e:
             imports = None
-            print(f'Error retrieving imports for {hsCode} in {year}: {e}')
+            print(f'Imports - Error retrieving imports for {hsCode} in {year}: {e}')
             with open(os.path.join(outdir, "error_log.txt"), "a+") as error_f:
                 error_f.write(f'import, {year}, {hsCode}\n')
 
@@ -195,7 +197,7 @@ for year in years:
             with open(importFilePath, 'w') as importF:
                 importF.write(importFile)
         else:
-            print(f'Skipping file creation for imports: {hsCode} in {year}')
+            print(f'Imports - Skipping file creation for: {hsCode} in {year}')
 
         time.sleep(1)  # Prevent hitting API rate limits
 
