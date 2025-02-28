@@ -24,6 +24,7 @@ import pprint
 import helpers
 import time
 import csv
+import time
 
 # Dataset Title -  "Time Series International Trade: Monthly U.S. Exports by Harmonized System (HS) Code"
 EXPORT_URL = 'https://api.census.gov/data/timeseries/intltrade/exports/hs'
@@ -35,14 +36,66 @@ f = open('census_api_key.txt', 'r')
 API_KEY = f.read()
 f.close()
 
-# make sure there are no extra characters in key
-API_KEY = API_KEY.rstrip('\n')
+# Get current date in YYYYMMDD format
+current_date = time.strftime("%Y%m%d")
+
+# Define output directory with date
+outdir = f"output/us-census-data-{current_date}"
+
+# create directories to store data
+exports_dir = os.path.join(outdir, "exports")
+imports_dir = os.path.join(outdir, "imports")
+
+# create directories if they don't exist
+if not os.path.exists(exports_dir):
+    os.makedirs(exports_dir)
+
+if not os.path.exists(imports_dir):
+    os.makedirs(imports_dir)
+
+# Define log file path inside `helpers.py`
+log_file = os.path.join(outdir, "request_log.csv")
 
 # Initialize the log file with headers if it doesn't exist
 if not os.path.exists(log_file):
     with open(log_file, "w", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow(["date", "year", "hs_code", "dataset", "http_status", "request_url"])
+        writer.writerow(["request_datetime_utc", "year", "hs_code", "dataset", "http_status", "response_size", "num_records", "request_url"])
+
+# make sure there are no extra characters in key
+API_KEY = API_KEY.rstrip('\n')
+
+# Define years to pull (descending order from 2024 to 1996)
+years = list(range(2024, 1995, -1))
+
+# define HS level to pull
+hsLvl = 'HS10'
+
+# define country codes to pull
+ctyCodes = []
+#ctyCodes = [
+#    "5700", # China
+#    "5830", # Taiwan
+#    "5820", # Hong Kong
+#    "5660", # Macau
+#    "4621" # Russia
+#]
+
+# Get all relevant HS Codes from files
+inFilePath = 'data/seafoodLvl10Codes.csv'
+inF = open(inFilePath, 'r')
+lines = inF.readlines()
+inF.close()
+
+
+seafoodHScodes = []
+
+# remove newline characters
+for line in lines:
+    line = line.rstrip('\n')
+    seafoodHScodes.append(line)
+
+#seafoodHScodes = ['0301110020']
 
 # define which variables we want to pull
 
@@ -101,56 +154,14 @@ tableHeadersImport = [
     #'DF'
 ]
 
-# Define years to pull (descending order from 2024 to 1996)
-years = list(range(2024, 1995, -1))
-
-# define country codes to pull
-ctyCodes = []
-#ctyCodes = [
-#    "5700", # China
-#    "5830", # Taiwan
-#    "5820", # Hong Kong
-#    "5660", # Macau
-#    "4621" # Russia
-#]
-# define HS level to pull
-hsLvl = 'HS10'
-
-# Get all relevant HS Codes from files
-inFilePath = 'data/seafoodLvl10Codes.csv'
-inF = open(inFilePath, 'r')
-lines = inF.readlines()
-inF.close()
-
-
-seafoodHScodes = []
-
-# remove newline characters
-for line in lines:
-    line = line.rstrip('\n')
-    seafoodHScodes.append(line)
-
-#seafoodHScodes = ['0301110020']
-
-# create directories to store data
-outdir = "rus_chn_20250225"
-exports_dir = os.path.join(outdir, "exports")
-imports_dir = os.path.join(outdir, "imports")
-
-# create directories if they don't exist
-if not os.path.exists(exports_dir):
-    os.makedirs(exports_dir)
-
-if not os.path.exists(imports_dir):
-    os.makedirs(imports_dir)
 
 # loop through years and HS codes to pull data
 for year in years:
-    print(f'------------------------------------------- \nhs codes are being searched for {year}')
+    print(f'------------------------------------------- \nhs codes are being searched for {year}\n-------------------------------------------')
 
     for hsCode in seafoodHScodes:
 
-        print(f'****\nYEAR: {year} HS CODE: {hsCode}')
+        print(f'**********\nYEAR: {year} HS CODE: {hsCode}')
 
         # Construct Export Request URL (without API key)
         export_url = f"{EXPORT_URL}?get={','.join(tableHeadersExport)}&COMM_LVL={hsLvl}&E_COMMODITY={hsCode}&YEAR={year}"
@@ -158,9 +169,10 @@ for year in years:
             export_url += "&" + "&".join(f"CTY_CODE={code}" for code in ctyCodes)
 
         # Fetch export data & HTTP status
-        exports, export_status = helpers.getTradeRecords('export', EXPORT_URL, tableHeadersExport, [hsCode], hsLvl, [year], ctyCodes, API_KEY)
-        helpers.log_request(year, hsCode, "export", export_status, export_url)  # ✅ Log export request
-
+# Fetch export data & HTTP status
+        exports, export_status, export_size, export_num_records = helpers.getTradeRecords('export', EXPORT_URL, tableHeadersExport, [hsCode], hsLvl, [year], ctyCodes, API_KEY)
+        helpers.log_request(log_file, year, hsCode, "export", export_status, export_size, export_num_records, export_url)
+        
         # Handle API response
         if exports:
             print(f'Exports - Successfully retrieved for {hsCode} in {year}')
@@ -183,8 +195,9 @@ for year in years:
             import_url += "&" + "&".join(f"CTY_CODE={code}" for code in ctyCodes)
 
         # Fetch import data & HTTP status
-        imports, import_status = helpers.getTradeRecords('import', IMPORT_URL, tableHeadersImport, [hsCode], hsLvl, [year], ctyCodes, API_KEY)
-        helpers.log_request(year, hsCode, "import", import_status, import_url)  # ✅ Log import request
+        imports, import_status, import_size, import_num_records = helpers.getTradeRecords('import', IMPORT_URL, tableHeadersImport, [hsCode], hsLvl, [year], ctyCodes, API_KEY)
+        helpers.log_request(log_file, year, hsCode, "import", import_status, import_size, import_num_records, import_url)
+
 
         # Handle API response
         if imports:

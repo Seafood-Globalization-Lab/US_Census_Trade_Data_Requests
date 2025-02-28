@@ -16,12 +16,10 @@ Execution:
 import requests
 import json
 import csv
-import datetime
+import time
 import os
 
-# Ensure the output directory exists
-outdir = "output"
-os.makedirs(outdir, exist_ok=True)  #  Creates "output" directory if it doesn't exist
+
 
 # Filter data based on HS code
 def filterData(data, hsLvl, hsCode):
@@ -95,7 +93,7 @@ def buildCtyCodes(ctyCodes):
 
 
 def getTradeRecords(tradeType, tradeURL, colHeaders, hsCodes, hsLvl, years, ctyCodes, apiKey):
-    """Fetch trade records from the Census API and return (data, HTTP status)."""
+    """Fetch trade records from the Census API and return (data, HTTP status, response size, number of records)."""
     
     # Construct full URL
     fullURL = tradeURL + '?get='
@@ -110,28 +108,31 @@ def getTradeRecords(tradeType, tradeURL, colHeaders, hsCodes, hsLvl, years, ctyC
     # Request data from API
     try:
         resp = requests.get(fullURL)
-        print(f"HTTP Response Status: {resp.status_code}")  # Debugging
+        response_size = len(resp.content)  # Capture response size in bytes
+        print(f"HTTP Response Status: {resp.status_code}, Response Size: {response_size} bytes")
 
         # If the request was successful (200), attempt to parse response
         if resp.status_code == 200:
             if not resp.text.strip():  # Check if response is empty
                 print(f"Warning: Empty response from API for {hsCodes}, {years}")
-                return None, resp.status_code  # ✅ Return (None, HTTP status)
+                return None, resp.status_code, response_size, 0  # No records
 
             try:
                 tradeRecords = resp.json()
-                return tradeRecords, resp.status_code  # ✅ Return (data, HTTP status)
+                num_records = len(tradeRecords) if isinstance(tradeRecords, list) else 0
+                return tradeRecords, resp.status_code, response_size, num_records  # Return all data
             except json.JSONDecodeError as e:
                 print(f"JSONDecodeError for {hsCodes}, {years}: {e}")
                 print(f"Raw API Response (truncated):\n{resp.text[:300]}...\n")
-                return None, resp.status_code  # ✅ Return (None, HTTP status)
+                return None, resp.status_code, response_size, 0  # No records
 
         # If status is not 200, return None + status
-        return None, resp.status_code  # ✅ Return (None, HTTP status)
+        return None, resp.status_code, response_size, 0  # No records
 
     except requests.RequestException as e:
         print(f"Request failed: {e}")
-        return None, -1  # ✅ Return (None, -1) for network-related failures
+        return None, -1, 0, 0  #  -1 status for network failure, 0 response size & records
+
 
 
 # Format country codes
@@ -155,10 +156,15 @@ def formatCountryCodes(inFP, outFP):
             f.write(code)
     f.close()
 
-# Log request details
-def log_request(year, hsCode, dataset, http_status, request_url):
+def log_request(log_file, year, hsCode, dataset, http_status, response_size, num_records, request_url):
     """Append request details to request_log.csv"""
+
+    # Ensure log file exists with headers
+    if not os.path.exists(log_file):
+        with open(log_file, "w", newline="") as file:
+            writer = csv.writer(file)
+            writer.writerow(["request_datetime_utc", "year", "hs_code", "dataset", "http_status", "response_size", "num_records", "request_url"])
+    # Append request details
     with open(log_file, "a", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow([datetime.datetime.utcnow(), year, hsCode, dataset, http_status, request_url])
-
+        writer.writerow([time.strftime("%Y_%m_%dT%H:%M:%SZ", time.gmtime()), year, hsCode, dataset, http_status, response_size, num_records, request_url])
